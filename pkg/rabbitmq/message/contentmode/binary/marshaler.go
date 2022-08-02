@@ -12,19 +12,19 @@ import (
 
 type Marshaler struct{}
 
-func (m Marshaler) Marshal(md *event.Metadata, data []byte) amqp.Publishing {
+func (m Marshaler) Marshal(md *event.Metadata, data []byte) (amqp.Publishing, error) {
 	return amqp.Publishing{
 		Type:        md.Type,
 		ContentType: md.DataContentType,
 		Headers:     marshalMetadata(md),
 		Body:        data,
-	}
+	}, nil
 }
 
 func (m Marshaler) Unmarshal(d *amqp.Delivery) (*event.Metadata, []byte, error) {
 	md, err := unmarshalMetadata(d)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse amqp delivery: %w", err)
+		return nil, nil, fmt.Errorf("parse amqp headres: %w", err)
 	}
 
 	return md, d.Body, nil
@@ -35,7 +35,6 @@ func marshalMetadata(meta *event.Metadata) amqp.Table {
 		"cloudEvents:specversion": meta.SpecVersion,
 		"cloudEvents:id":          meta.ID,
 		"cloudEvents:source":      meta.Source,
-		"cloudEvents:time":        meta.Time.Format(time.RFC3339),
 	}
 
 	if meta.Subject != "" {
@@ -44,6 +43,10 @@ func marshalMetadata(meta *event.Metadata) amqp.Table {
 
 	if meta.DataSchema != nil {
 		headers["cloudEvents:dataschema"] = meta.DataSchema.String()
+	}
+
+	if !meta.Time.IsZero() {
+		headers["cloudEvents:time"] = meta.Time.Format(time.RFC3339)
 	}
 
 	if meta.Extensions != nil {
@@ -106,7 +109,7 @@ func unmarshalMetadata(d *amqp.Delivery) (*event.Metadata, error) {
 	}
 
 	for k, v := range d.Headers {
-		if !strings.HasPrefix(k, "cloudEvents:") {
+		if !strings.HasPrefix(k, "cloudEvents") {
 			if md.Extensions == nil {
 				md.Extensions = make(map[string]interface{})
 			}

@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
@@ -69,7 +70,11 @@ func (s *Sender) Setup(ctx context.Context, desc *eventbus.ServiceDesc) error {
 }
 
 func (s *Sender) Send(ctx context.Context, meta *event.Metadata, data []byte) error {
-	mess := s.options.marshaler.Marshal(meta, data)
+	mess, err := s.options.marshaler.Marshal(meta, data)
+	if err != nil {
+		return fmt.Errorf("marshal to rabbitmq message: %w", err)
+	}
+
 	mess.DeliveryMode = s.options.deliveryMode
 
 	pos := strings.LastIndex(meta.Type, ".")

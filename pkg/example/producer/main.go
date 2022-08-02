@@ -38,17 +38,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	publisher := eventbus.NewPublisher(sender)
+	publisher := eventbus.NewPublisher(sender, eventbus.WithDefaultPublishOptions(eventbus.WithEventContentType("application/cloudevents+json")))
 	booksPublisher := books.NewEventPublisher(publisher)
 
 	var eg errgroup.Group
 
-	for i := int32(1); i <= 4; i++ {
+	for i := int32(1); i <= 1; i++ {
 		i := i
 		eg.Go(func() error {
 			fmt.Println("start publisher:", i)
 
-			for c := int32(1); c <= 1000; c++ {
+			for c := int32(1); c <= 1; c++ {
 				err := booksPublisher.PublishBookCreatedEvent(context.Background(), &books.BookCreatedEvent{
 					Id: c * i,
 				})

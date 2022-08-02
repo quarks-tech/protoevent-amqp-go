@@ -7,5 +7,5 @@ import (
 
 type Marshaler interface {
 	Unmarshal(d *stdamqp.Delivery) (*event.Metadata, []byte, error)
-	Marshal(md *event.Metadata, data []byte) stdamqp.Publishing
+	Marshal(md *event.Metadata, data []byte) (stdamqp.Publishing, error)
 }

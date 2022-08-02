@@ -14,7 +14,7 @@ type Marshaler struct {
 	binary     binary.Marshaler
 }
 
-func (m Marshaler) Marshal(md *event.Metadata, data []byte) amqp.Publishing {
+func (m Marshaler) Marshal(md *event.Metadata, data []byte) (amqp.Publishing, error) {
 	if md.DataContentType == structuredContentType {
 		return m.structured.Marshal(md, data)
 	}
