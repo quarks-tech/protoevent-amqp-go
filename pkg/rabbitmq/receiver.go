@@ -148,11 +148,11 @@ func (r *Receiver) setupTopology(conn *connpool.Conn, infos []eventbus.ServiceIn
 
 func (r *Receiver) Receive(ctx context.Context, processor eventbus.Processor) error {
 	return r.client.Process(ctx, func(ctx context.Context, conn *connpool.Conn) error {
-		return r.receive(conn, ctx, processor)
+		return r.receive(ctx, conn, processor)
 	})
 }
 
-func (r *Receiver) receive(conn *connpool.Conn, ctx context.Context, processor eventbus.Processor) error {
+func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor eventbus.Processor) error {
 	if err := conn.Channel().Qos(r.options.prefetchCount, 0, false); err != nil {
 		return err
 	}

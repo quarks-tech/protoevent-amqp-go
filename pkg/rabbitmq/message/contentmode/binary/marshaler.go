@@ -24,7 +24,7 @@ func (m Marshaler) Marshal(md *event.Metadata, data []byte) (amqp.Publishing, er
 func (m Marshaler) Unmarshal(d *amqp.Delivery) (*event.Metadata, []byte, error) {
 	md, err := unmarshalMetadata(d)
 	if err != nil {
-		return nil, nil, fmt.Errorf("parse amqp headres: %w", err)
+		return nil, nil, fmt.Errorf("parse amqp delivery: %w", err)
 	}
 
 	return md, d.Body, nil
