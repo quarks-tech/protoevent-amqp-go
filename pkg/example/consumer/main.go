@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/quarks-tech/amqp"
-	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq"
+	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/parkinglot"
 	stdamqp "github.com/streadway/amqp"
 
 	"github.com/quarks-tech/protoevent-go/example/gen/example/books/v1"
@@ -21,7 +21,7 @@ type Handler struct{}
 func (h Handler) HandleBookCreatedEvent(ctx context.Context, e *books.BookCreatedEvent) error {
 	fmt.Printf("%d\n", e.Id)
 
-	return nil
+	return fmt.Errorf("parkinglot test")
 }
 
 func main() {
@@ -41,13 +41,13 @@ func main() {
 
 	defer client.Close()
 
-	receiver := rabbitmq.NewReceiver(client,
-		rabbitmq.WithTopologySetup(),
-		rabbitmq.WithDLX(),
-	)
-
 	subscriber := eventbus.NewSubscriber("example.consumers.v1")
 	books.RegisterBookCreatedEventHandler(subscriber, Handler{})
+
+	receiver := parkinglot.NewReceiver(client,
+		parkinglot.WithTopologySetup(),
+		parkinglot.WithBindingsSetup(),
+	)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

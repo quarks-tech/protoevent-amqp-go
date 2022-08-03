@@ -3,11 +3,10 @@ package rabbitmq
 import (
 	"context"
 	"fmt"
-	"runtime"
 
-	"github.com/google/uuid"
 	"github.com/quarks-tech/amqp"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
+	"github.com/rs/xid"
 	stdamqp "github.com/streadway/amqp"
 	"golang.org/x/sync/errgroup"
 
@@ -18,36 +17,33 @@ import (
 const dlxSuffix = ".dlx"
 
 type receiverOptions struct {
-	marshaler     Marshaler
-	queue         string
-	workerCount   int
-	prefetchCount int
-	consumerTag   string
-	setupTopology bool
-	enableDLX     bool
+	marshaler      Marshaler
+	queue          string
+	prefetchCount  int
+	consumerTag    string
+	setupTopology  bool
+	enableDLX      bool
+	requeueOnError bool
 }
 
 func defaultReceiverOptions() receiverOptions {
-	maxProcs := runtime.GOMAXPROCS(0)
-
 	return receiverOptions{
 		marshaler:     message.Marshaler{},
-		workerCount:   maxProcs,
-		prefetchCount: maxProcs * 3,
+		prefetchCount: 3,
 	}
 }
 
 type ReceiverOption func(o *receiverOptions)
 
-func WithWorkerNum(c int) ReceiverOption {
-	return func(o *receiverOptions) {
-		o.workerCount = c
-	}
-}
-
 func WithTopologySetup() ReceiverOption {
 	return func(o *receiverOptions) {
 		o.setupTopology = true
+	}
+}
+
+func WithRequeue() ReceiverOption {
+	return func(o *receiverOptions) {
+		o.requeueOnError = true
 	}
 }
 
@@ -63,7 +59,7 @@ func WithPrefetchCount(c int) ReceiverOption {
 	}
 }
 
-func WithMessageParser(m Marshaler) ReceiverOption {
+func WithMarshaler(m Marshaler) ReceiverOption {
 	return func(opts *receiverOptions) {
 		opts.marshaler = m
 	}
@@ -97,9 +93,7 @@ func (r *Receiver) Setup(ctx context.Context, consumerName string, infos ...even
 		r.options.queue = consumerName
 	}
 
-	if r.options.consumerTag == "" {
-		r.options.consumerTag = fmt.Sprintf("%s-%s", consumerName, uuid.New().String())
-	}
+	r.options.consumerTag = fmt.Sprintf("%s-%s", consumerName, xid.New())
 
 	if !r.options.setupTopology {
 		return nil
@@ -154,11 +148,11 @@ func (r *Receiver) setupTopology(conn *connpool.Conn, infos []eventbus.ServiceIn
 
 func (r *Receiver) Receive(ctx context.Context, processor eventbus.Processor) error {
 	return r.client.Process(ctx, func(ctx context.Context, conn *connpool.Conn) error {
-		return r.receive(conn, ctx, processor)
+		return r.receive(ctx, conn, processor)
 	})
 }
 
-func (r *Receiver) receive(conn *connpool.Conn, ctx context.Context, processor eventbus.Processor) error {
+func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor eventbus.Processor) error {
 	if err := conn.Channel().Qos(r.options.prefetchCount, 0, false); err != nil {
 		return err
 	}
@@ -181,40 +175,38 @@ func (r *Receiver) receive(conn *connpool.Conn, ctx context.Context, processor e
 		}
 	})
 
-	for i := 0; i < r.options.workerCount; i++ {
-		eg.Go(func() error {
-			for delivery := range deliveries {
-				select {
-				case <-ctx.Done():
-					return nil
-				default:
-					md, data, err := r.options.marshaler.Unmarshal(&delivery)
-					if err == nil {
-						err = processor(md, data)
-					} else {
-						err = eventbus.NewUnprocessableEventError(err)
-					}
+	eg.Go(func() error {
+		for delivery := range deliveries {
+			select {
+			case <-egCtx.Done():
+				return nil
+			default:
+				md, data, err := r.options.marshaler.Unmarshal(&delivery)
+				if err == nil {
+					err = processor(md, data)
+				} else {
+					err = eventbus.NewUnprocessableEventError(err)
+				}
 
-					if ackErr := doAcknowledge(&delivery, err); ackErr != nil {
-						return ackErr
-					}
+				if ackErr := doAcknowledge(&delivery, err, r.options.requeueOnError); ackErr != nil {
+					return ackErr
 				}
 			}
+		}
 
-			return nil
-		})
-	}
+		return nil
+	})
 
 	return eg.Wait()
 }
 
-func doAcknowledge(m *stdamqp.Delivery, err error) error {
+func doAcknowledge(m *stdamqp.Delivery, err error, requeueOnError bool) error {
 	switch {
 	case err == nil:
 		return m.Ack(false)
 	case eventbus.IsUnprocessableEventError(err):
 		return m.Reject(false)
 	default:
-		return m.Reject(true)
+		return m.Reject(requeueOnError)
 	}
 }
