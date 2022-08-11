@@ -15,20 +15,27 @@ type Marshaler struct{}
 
 func (m Marshaler) Marshal(md *event.Metadata, data []byte) (amqp.Publishing, error) {
 	dto := map[string]interface{}{
-		"specversion":     md.SpecVersion,
-		"id":              md.ID,
-		"type":            md.Type,
-		"source":          md.Source,
-		"datacontenttype": md.DataContentType,
-		"data":            json.RawMessage(data),
+		"specversion": md.SpecVersion,
+		"id":          md.ID,
+		"type":        md.Type,
+		"source":      md.Source,
+		"data":        json.RawMessage(data),
+	}
+
+	if md.DataContentType != "" {
+		dto["datacontenttype"] = md.DataContentType
+	}
+
+	if md.DataSchema != nil {
+		dto["dataschema"] = md.DataSchema.String()
 	}
 
 	if md.Subject != "" {
 		dto["subject"] = md.Subject
 	}
 
-	if md.DataSchema != nil {
-		dto["dataschema"] = md.DataSchema.String()
+	if !md.Time.IsZero() {
+		dto["time"] = md.Time.Format(time.RFC3339)
 	}
 
 	if md.Extensions != nil {
