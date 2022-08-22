@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/json-iterator/go v1.1.12
-	github.com/quarks-tech/amqp v0.1.0
+	github.com/quarks-tech/amqpx v0.1.0
 	github.com/quarks-tech/protoevent-go v0.1.6
 	github.com/rs/xid v1.4.0
 	github.com/streadway/amqp v1.0.0

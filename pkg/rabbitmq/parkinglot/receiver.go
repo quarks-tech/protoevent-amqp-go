@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/quarks-tech/amqp"
+	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
 	"github.com/rs/xid"
-	stdamqp "github.com/streadway/amqp"
+	"github.com/streadway/amqp"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/quarks-tech/amqp/connpool"
+	"github.com/quarks-tech/amqpx/connpool"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
 )
 
@@ -84,12 +84,12 @@ func WithMarshaler(m rabbitmq.Marshaler) ReceiverOption {
 }
 
 type Receiver struct {
-	client       *amqp.Client
+	client       *amqpx.Client
 	options      receiverOptions
 	consumerName string
 }
 
-func NewReceiver(client *amqp.Client, opts ...ReceiverOption) *Receiver {
+func NewReceiver(client *amqpx.Client, opts ...ReceiverOption) *Receiver {
 	options := defaultReceiverOptions()
 
 	for _, opt := range opts {
@@ -143,18 +143,18 @@ const (
 )
 
 func (r *Receiver) setupTopology(conn *connpool.Conn) error {
-	incomingQueueArgs := stdamqp.Table{
+	incomingQueueArgs := amqp.Table{
 		"x-dead-letter-exchange":    r.options.dlxExchange,
 		"x-dead-letter-routing-key": wait,
 	}
 
-	waitQueueArgs := stdamqp.Table{
+	waitQueueArgs := amqp.Table{
 		"x-dead-letter-exchange":    r.options.dlxExchange,
 		"x-dead-letter-routing-key": retry,
 		"x-message-ttl":             r.options.minRetryBackoff.Milliseconds(),
 	}
 
-	err := conn.Channel().ExchangeDeclare(r.options.dlxExchange, stdamqp.ExchangeTopic, true, false, false, false, nil)
+	err := conn.Channel().ExchangeDeclare(r.options.dlxExchange, amqp.ExchangeTopic, true, false, false, false, nil)
 	if err != nil {
 		return err
 	}
@@ -225,7 +225,7 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 			return conn.Channel().Cancel(r.options.consumerTag, false)
 		case <-egCtx.Done():
 			return conn.Close()
-		case connErr := <-conn.NotifyClose(make(chan *stdamqp.Error)):
+		case connErr := <-conn.NotifyClose(make(chan *amqp.Error)):
 			return connErr
 		}
 	})
@@ -255,7 +255,7 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 	return eg.Wait()
 }
 
-func (r *Receiver) doAcknowledge(conn *connpool.Conn, d *stdamqp.Delivery, err error) error {
+func (r *Receiver) doAcknowledge(conn *connpool.Conn, d *amqp.Delivery, err error) error {
 	switch {
 	case err == nil:
 		return d.Ack(false)
@@ -266,8 +266,8 @@ func (r *Receiver) doAcknowledge(conn *connpool.Conn, d *stdamqp.Delivery, err e
 	}
 }
 
-func (r *Receiver) putIntoParkingLot(conn *connpool.Conn, d *stdamqp.Delivery) error {
-	msg := stdamqp.Publishing{
+func (r *Receiver) putIntoParkingLot(conn *connpool.Conn, d *amqp.Delivery) error {
+	msg := amqp.Publishing{
 		Headers:         d.Headers,
 		Type:            d.Type,
 		ContentType:     d.ContentType,
@@ -284,14 +284,14 @@ func (r *Receiver) putIntoParkingLot(conn *connpool.Conn, d *stdamqp.Delivery) e
 	return d.Ack(false)
 }
 
-func hasExceededRetryCount(d *stdamqp.Delivery, max int64) bool {
+func hasExceededRetryCount(d *amqp.Delivery, max int64) bool {
 	death, ok := d.Headers["x-death"].([]interface{})
 	if !ok {
 		return false
 	}
 
 	for _, i := range death {
-		t := i.(stdamqp.Table)
+		t := i.(amqp.Table)
 
 		if t["queue"] == d.Headers["x-first-death-queue"] {
 			return t["count"].(int64) >= max

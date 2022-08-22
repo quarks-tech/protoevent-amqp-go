@@ -10,18 +10,18 @@ import (
 	"github.com/quarks-tech/protoevent-go/example/gen/example/books/v1"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
 
-	"github.com/quarks-tech/amqp"
+	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq"
-	stdamqp "github.com/streadway/amqp"
+	"github.com/streadway/amqp"
 )
 
 func main() {
-	client := amqp.NewClient(&amqp.Config{
+	client := amqpx.NewClient(&amqpx.Config{
 		Address: "localhost:5672",
-		AMQP: stdamqp.Config{
+		AMQP: amqp.Config{
 			Vhost: "/",
-			SASL: []stdamqp.Authentication{
-				&stdamqp.PlainAuth{
+			SASL: []amqp.Authentication{
+				&amqp.PlainAuth{
 					Username: "guest",
 					Password: "guest",
 				},

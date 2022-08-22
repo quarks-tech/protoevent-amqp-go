@@ -4,14 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/quarks-tech/amqp"
+	"github.com/quarks-tech/amqpx"
+	"github.com/quarks-tech/amqpx/connpool"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
-	"github.com/rs/xid"
-	stdamqp "github.com/streadway/amqp"
-	"golang.org/x/sync/errgroup"
-
-	"github.com/quarks-tech/amqp/connpool"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
+	"github.com/rs/xid"
+	"github.com/streadway/amqp"
+	"golang.org/x/sync/errgroup"
 )
 
 const dlxSuffix = ".dlx"
@@ -66,12 +65,12 @@ func WithMarshaler(m Marshaler) ReceiverOption {
 }
 
 type Receiver struct {
-	client       *amqp.Client
+	client       *amqpx.Client
 	options      receiverOptions
 	consumerName string
 }
 
-func NewReceiver(client *amqp.Client, opts ...ReceiverOption) *Receiver {
+func NewReceiver(client *amqpx.Client, opts ...ReceiverOption) *Receiver {
 	options := defaultReceiverOptions()
 
 	for _, opt := range opts {
@@ -105,17 +104,17 @@ func (r *Receiver) Setup(ctx context.Context, consumerName string, infos ...even
 }
 
 func (r *Receiver) setupTopology(conn *connpool.Conn, infos []eventbus.ServiceInfo) error {
-	var queueDeclareArgs stdamqp.Table
+	var queueDeclareArgs amqp.Table
 
 	if r.options.enableDLX {
 		dlxExchange := r.options.queue + dlxSuffix
 		dlxQueue := r.options.queue + dlxSuffix
 
-		queueDeclareArgs = stdamqp.Table{
+		queueDeclareArgs = amqp.Table{
 			"x-dead-letter-exchange": dlxExchange,
 		}
 
-		err := conn.Channel().ExchangeDeclare(dlxExchange, stdamqp.ExchangeFanout, true, false, false, false, nil)
+		err := conn.Channel().ExchangeDeclare(dlxExchange, amqp.ExchangeFanout, true, false, false, false, nil)
 		if err != nil {
 			return err
 		}
@@ -170,7 +169,7 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 			return conn.Channel().Cancel(r.options.consumerTag, false)
 		case <-egCtx.Done():
 			return conn.Close()
-		case connErr := <-conn.NotifyClose(make(chan *stdamqp.Error)):
+		case connErr := <-conn.NotifyClose(make(chan *amqp.Error)):
 			return connErr
 		}
 	})
@@ -200,7 +199,7 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 	return eg.Wait()
 }
 
-func doAcknowledge(m *stdamqp.Delivery, err error, requeueOnError bool) error {
+func doAcknowledge(m *amqp.Delivery, err error, requeueOnError bool) error {
 	switch {
 	case err == nil:
 		return m.Ack(false)

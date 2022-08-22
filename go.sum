@@ -221,8 +221,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/posener/complete v1.1.1/go.mod h1:em0nMJCgc9GFtwrmVmEMR/ZL6WyhyjMBndrE9hABlRI=
 github.com/prometheus/client_model v0.0.0-20190812154241-14fe0d1b01d4/go.mod h1:xMI15A0UPsDsEKsMN9yxemIoYk6Tm2C1GtYGdfGttqA=
-github.com/quarks-tech/amqp v0.1.0 h1:0P/WxejgZO/t/WCPuqj+OpToFrSnTtDfND5b/27ADO4=
-github.com/quarks-tech/amqp v0.1.0/go.mod h1:nNes+DyHIb2yQ5RJ6lP1mWPbSMtivvxgIyJW/bqH5nc=
+github.com/quarks-tech/amqpx v0.1.0 h1:+6FTzZ/lakOHGg6D5hbBBqaHAk/EaPwlwbJJGY8+r74=
+github.com/quarks-tech/amqpx v0.1.0/go.mod h1:GVHDB93JIydMGO4jnR9wrtOaC8w3JE2L5XgII4JiEcQ=
 github.com/quarks-tech/protoevent v0.1.0 h1:To6HazWlm/DWc+SAghisGKG8yQkWOE4YDZiX1J9m5bA=
 github.com/quarks-tech/protoevent v0.1.0/go.mod h1:Tc7ZXJDALcjC8Si6Sf4vJ2RljX1hiKxMp7gsfkq7QGE=
 github.com/quarks-tech/protoevent-go v0.1.6 h1:AAOuCzGU3pfYszTxzjVgfMv911wOgB1VYATg0lwTQYo=

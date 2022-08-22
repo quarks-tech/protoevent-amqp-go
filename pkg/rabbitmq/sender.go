@@ -6,10 +6,10 @@ import (
 	"strings"
 
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
-	stdamqp "github.com/streadway/amqp"
+	"github.com/streadway/amqp"
 
-	"github.com/quarks-tech/amqp"
-	"github.com/quarks-tech/amqp/connpool"
+	"github.com/quarks-tech/amqpx"
+	"github.com/quarks-tech/amqpx/connpool"
 	"github.com/quarks-tech/protoevent-go/pkg/event"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
 )
@@ -46,11 +46,11 @@ func defaultSenderOptions() senderOptions {
 type SenderOption func(opts *senderOptions)
 
 type Sender struct {
-	client  *amqp.Client
+	client  *amqpx.Client
 	options senderOptions
 }
 
-func NewSender(client *amqp.Client, opts ...SenderOption) *Sender {
+func NewSender(client *amqpx.Client, opts ...SenderOption) *Sender {
 	options := defaultSenderOptions()
 
 	for _, opt := range opts {
@@ -65,7 +65,7 @@ func NewSender(client *amqp.Client, opts ...SenderOption) *Sender {
 
 func (s *Sender) Setup(ctx context.Context, desc *eventbus.ServiceDesc) error {
 	return s.client.Process(ctx, func(ctx context.Context, conn *connpool.Conn) error {
-		return conn.Channel().ExchangeDeclare(desc.ServiceName, stdamqp.ExchangeTopic, true, false, false, false, nil)
+		return conn.Channel().ExchangeDeclare(desc.ServiceName, amqp.ExchangeTopic, true, false, false, false, nil)
 	})
 }
 
