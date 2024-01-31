@@ -17,7 +17,7 @@ const dlxSuffix = ".dlx"
 
 type receiverOptions struct {
 	marshaler      Marshaler
-	queue          string
+	incomingQueue  string
 	prefetchCount  int
 	consumerTag    string
 	setupTopology  bool
@@ -33,6 +33,12 @@ func defaultReceiverOptions() receiverOptions {
 }
 
 type ReceiverOption func(o *receiverOptions)
+
+func WithIncomingQueue(queue string) ReceiverOption {
+	return func(o *receiverOptions) {
+		o.incomingQueue = queue
+	}
+}
 
 func WithTopologySetup() ReceiverOption {
 	return func(o *receiverOptions) {
@@ -88,8 +94,8 @@ func NewReceiver(client *amqpx.Client, opts ...ReceiverOption) *Receiver {
 func (r *Receiver) Setup(ctx context.Context, consumerName string, infos ...eventbus.ServiceInfo) error {
 	r.consumerName = consumerName
 
-	if r.options.queue == "" {
-		r.options.queue = consumerName
+	if r.options.incomingQueue == "" {
+		r.options.incomingQueue = consumerName
 	}
 
 	r.options.consumerTag = fmt.Sprintf("%s-%s", consumerName, xid.New())
@@ -107,8 +113,8 @@ func (r *Receiver) setupTopology(conn *connpool.Conn, infos []eventbus.ServiceIn
 	var queueDeclareArgs amqp.Table
 
 	if r.options.enableDLX {
-		dlxExchange := r.options.queue + dlxSuffix
-		dlxQueue := r.options.queue + dlxSuffix
+		dlxExchange := r.options.incomingQueue + dlxSuffix
+		dlxQueue := r.options.incomingQueue + dlxSuffix
 
 		queueDeclareArgs = amqp.Table{
 			"x-dead-letter-exchange": dlxExchange,
@@ -129,14 +135,14 @@ func (r *Receiver) setupTopology(conn *connpool.Conn, infos []eventbus.ServiceIn
 		}
 	}
 
-	_, err := conn.Channel().QueueDeclare(r.options.queue, true, false, false, false, queueDeclareArgs)
+	_, err := conn.Channel().QueueDeclare(r.options.incomingQueue, true, false, false, false, queueDeclareArgs)
 	if err != nil {
 		return err
 	}
 
 	for _, info := range infos {
 		for _, eventName := range info.Events {
-			if err = conn.Channel().QueueBind(r.options.queue, eventName, info.ServiceName, false, nil); err != nil {
+			if err = conn.Channel().QueueBind(r.options.incomingQueue, eventName, info.ServiceName, false, nil); err != nil {
 				return err
 			}
 		}
@@ -156,7 +162,7 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 		return err
 	}
 
-	deliveries, err := conn.Channel().Consume(r.options.queue, r.options.consumerTag, false, false, false, false, nil)
+	deliveries, err := conn.Channel().Consume(r.options.incomingQueue, r.options.consumerTag, false, false, false, false, nil)
 	if err != nil {
 		return err
 	}
