@@ -47,6 +47,12 @@ func defaultReceiverOptions() receiverOptions {
 
 type ReceiverOption func(o *receiverOptions)
 
+func WithIncomingQueue(queue string) ReceiverOption {
+	return func(o *receiverOptions) {
+		o.incomingQueue = queue
+	}
+}
+
 func WithMaxRetries(n int) ReceiverOption {
 	return func(o *receiverOptions) {
 		o.maxRetries = int64(n)
