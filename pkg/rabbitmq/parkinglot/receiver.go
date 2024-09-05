@@ -3,7 +3,6 @@ package parkinglot
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -36,6 +35,7 @@ type receiverOptions struct {
 	maxRetries      int64
 	minRetryBackoff time.Duration
 	marshaler       rabbitmq.Marshaler
+	logger          rabbitmq.Logger
 }
 
 func defaultReceiverOptions() receiverOptions {
@@ -88,6 +88,12 @@ func WithPrefetchCount(c int) ReceiverOption {
 func WithMarshaler(m rabbitmq.Marshaler) ReceiverOption {
 	return func(opts *receiverOptions) {
 		opts.marshaler = m
+	}
+}
+
+func WithLogger(l rabbitmq.Logger) ReceiverOption {
+	return func(opts *receiverOptions) {
+		opts.logger = l
 	}
 }
 
@@ -244,16 +250,9 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 			case <-egCtx.Done():
 				return nil
 			default:
-				md, data, err := r.options.marshaler.Unmarshal(&delivery)
-				if err != nil {
-					slog.Default().WarnContext(ctx, fmt.Sprintf("unmarshaling event [%v]: %s", delivery, err))
+				dErr := r.processDelivery(delivery, processor)
 
-					err = eventbus.NewUnprocessableEventError(err)
-				} else {
-					err = processor(md, data)
-				}
-
-				if ackErr := r.doAcknowledge(conn, &delivery, err); ackErr != nil {
+				if ackErr := r.doAcknowledge(conn, &delivery, dErr); ackErr != nil {
 					return fmt.Errorf("do acknowledge: %w", ackErr)
 				}
 			}
@@ -263,6 +262,19 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 	})
 
 	return eg.Wait()
+}
+
+func (r *Receiver) processDelivery(delivery amqp.Delivery, processor eventbus.Processor) error {
+	md, data, err := r.options.marshaler.Unmarshal(&delivery)
+	if err == nil {
+		return processor(md, data)
+	}
+
+	if r.options.logger != nil {
+		r.options.logger.Errorf(fmt.Sprintf("unmarshaling event [%v]: %s", delivery, err))
+	}
+
+	return eventbus.NewUnprocessableEventError(err)
 }
 
 func (r *Receiver) doAcknowledge(conn *connpool.Conn, d *amqp.Delivery, err error) error {
