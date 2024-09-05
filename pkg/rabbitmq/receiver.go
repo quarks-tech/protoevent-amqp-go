@@ -193,7 +193,7 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 			case <-egCtx.Done():
 				return nil
 			default:
-				dErr := r.processDelivery(delivery, processor)
+				dErr := r.processDelivery(&delivery, processor)
 
 				if ackErr := doAcknowledge(&delivery, dErr, r.options.requeueOnError); ackErr != nil {
 					return ackErr
@@ -207,14 +207,14 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 	return eg.Wait()
 }
 
-func (r *Receiver) processDelivery(delivery amqp.Delivery, processor eventbus.Processor) error {
-	md, data, err := r.options.marshaler.Unmarshal(&delivery)
+func (r *Receiver) processDelivery(delivery *amqp.Delivery, processor eventbus.Processor) error {
+	md, data, err := r.options.marshaler.Unmarshal(delivery)
 	if err == nil {
 		return processor(md, data)
 	}
 
 	if r.options.logger != nil {
-		r.options.logger.Errorf(fmt.Sprintf("unmarshaling event [%v]: %s", delivery, err))
+		r.options.logger.Errorf(fmt.Sprintf("unmarshaling event [%+v]: %s", delivery, err))
 	}
 
 	return eventbus.NewUnprocessableEventError(err)
