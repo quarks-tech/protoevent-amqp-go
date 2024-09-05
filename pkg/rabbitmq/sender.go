@@ -5,13 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 
 	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/amqpx/connpool"
 	"github.com/quarks-tech/protoevent-go/pkg/event"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
+
+	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
 )
 
 const (

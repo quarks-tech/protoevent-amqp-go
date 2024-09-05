@@ -1,10 +1,12 @@
 package message
 
 import (
+	amqp "github.com/rabbitmq/amqp091-go"
+
+	"github.com/quarks-tech/protoevent-go/pkg/event"
+
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message/contentmode/binary"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message/contentmode/structured"
-	"github.com/quarks-tech/protoevent-go/pkg/event"
-	"github.com/streadway/amqp"
 )
 
 const structuredContentType = "application/cloudevents+json"

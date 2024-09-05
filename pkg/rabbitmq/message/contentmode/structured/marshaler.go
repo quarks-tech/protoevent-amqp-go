@@ -7,8 +7,9 @@ import (
 	"time"
 
 	json "github.com/json-iterator/go"
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/quarks-tech/protoevent-go/pkg/event"
-	"github.com/streadway/amqp"
 )
 
 type Marshaler struct{}

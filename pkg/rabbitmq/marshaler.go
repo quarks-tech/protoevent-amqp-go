@@ -1,8 +1,9 @@
 package rabbitmq
 
 import (
+	stdamqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/quarks-tech/protoevent-go/pkg/event"
-	stdamqp "github.com/streadway/amqp"
 )
 
 type Marshaler interface {

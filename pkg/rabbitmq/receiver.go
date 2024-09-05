@@ -4,19 +4,22 @@ import (
 	"context"
 	"fmt"
 
+	amqp "github.com/rabbitmq/amqp091-go"
+	"github.com/rs/xid"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/amqpx/connpool"
-	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
-	"github.com/rs/xid"
-	"github.com/streadway/amqp"
-	"golang.org/x/sync/errgroup"
+
+	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
 )
 
 const dlxSuffix = ".dlx"
 
 type receiverOptions struct {
 	marshaler      Marshaler
+	logger         Logger
 	incomingQueue  string
 	prefetchCount  int
 	consumerTag    string
@@ -70,6 +73,12 @@ func WithMarshaler(m Marshaler) ReceiverOption {
 	}
 }
 
+func WithLogger(l Logger) ReceiverOption {
+	return func(opts *receiverOptions) {
+		opts.logger = l
+	}
+}
+
 type Receiver struct {
 	client       *amqpx.Client
 	options      receiverOptions
@@ -83,12 +92,10 @@ func NewReceiver(client *amqpx.Client, opts ...ReceiverOption) *Receiver {
 		opt(&options)
 	}
 
-	s := &Receiver{
+	return &Receiver{
 		client:  client,
 		options: options,
 	}
-
-	return s
 }
 
 func (r *Receiver) Setup(ctx context.Context, consumerName string, infos ...eventbus.ServiceInfo) error {
@@ -186,14 +193,9 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 			case <-egCtx.Done():
 				return nil
 			default:
-				md, data, err := r.options.marshaler.Unmarshal(&delivery)
-				if err == nil {
-					err = processor(md, data)
-				} else {
-					err = eventbus.NewUnprocessableEventError(err)
-				}
+				dErr := r.processDelivery(&delivery, processor)
 
-				if ackErr := doAcknowledge(&delivery, err, r.options.requeueOnError); ackErr != nil {
+				if ackErr := doAcknowledge(&delivery, dErr, r.options.requeueOnError); ackErr != nil {
 					return ackErr
 				}
 			}
@@ -203,6 +205,19 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 	})
 
 	return eg.Wait()
+}
+
+func (r *Receiver) processDelivery(delivery *amqp.Delivery, processor eventbus.Processor) error {
+	md, data, err := r.options.marshaler.Unmarshal(delivery)
+	if err == nil {
+		return processor(md, data)
+	}
+
+	if r.options.logger != nil {
+		r.options.logger.Errorf(fmt.Sprintf("unmarshaling event [%+v]: %s", delivery, err))
+	}
+
+	return eventbus.NewUnprocessableEventError(err)
 }
 
 func doAcknowledge(m *amqp.Delivery, err error, requeueOnError bool) error {

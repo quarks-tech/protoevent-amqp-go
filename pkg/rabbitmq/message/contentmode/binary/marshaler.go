@@ -6,8 +6,9 @@ import (
 	"strings"
 	"time"
 
+	amqp "github.com/rabbitmq/amqp091-go"
+
 	"github.com/quarks-tech/protoevent-go/pkg/event"
-	"github.com/streadway/amqp"
 )
 
 type Marshaler struct{}

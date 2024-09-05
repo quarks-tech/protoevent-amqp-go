@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"log"
 
+	amqp "github.com/rabbitmq/amqp091-go"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/protoevent-go/example/gen/example/books/v1"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
 
-	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq"
-	"github.com/streadway/amqp"
 )
 
 func main() {
