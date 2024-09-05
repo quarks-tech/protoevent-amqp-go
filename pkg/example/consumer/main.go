@@ -8,12 +8,13 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/quarks-tech/amqpx"
-	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/parkinglot"
-	"github.com/streadway/amqp"
+	amqp "github.com/rabbitmq/amqp091-go"
 
+	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/protoevent-go/example/gen/example/books/v1"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
+
+	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/parkinglot"
 )
 
 type Handler struct{}

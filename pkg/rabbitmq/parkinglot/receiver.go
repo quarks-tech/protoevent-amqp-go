@@ -3,17 +3,19 @@ package parkinglot
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
-	"github.com/quarks-tech/amqpx"
-	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq"
-	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/rs/xid"
-	"github.com/streadway/amqp"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/quarks-tech/amqpx"
 	"github.com/quarks-tech/amqpx/connpool"
 	"github.com/quarks-tech/protoevent-go/pkg/eventbus"
+
+	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq"
+	"github.com/quarks-tech/protoevent-amqp-go/pkg/rabbitmq/message"
 )
 
 const (
@@ -243,10 +245,12 @@ func (r *Receiver) receive(ctx context.Context, conn *connpool.Conn, processor e
 				return nil
 			default:
 				md, data, err := r.options.marshaler.Unmarshal(&delivery)
-				if err == nil {
-					err = processor(md, data)
-				} else {
+				if err != nil {
+					slog.Default().WarnContext(ctx, fmt.Sprintf("unmarshaling event [%v]: %s", delivery, err))
+
 					err = eventbus.NewUnprocessableEventError(err)
+				} else {
+					err = processor(md, data)
 				}
 
 				if ackErr := r.doAcknowledge(conn, &delivery, err); ackErr != nil {
